@@ -1,0 +1,451 @@
+# 
+from qiskit import QuantumCircuit , assemble , Aer
+from qiskit import ClassicalRegister , QuantumRegister , execute
+from qiskit.visualization import plot_histogram , plot_bloch_vector , plot_bloch_multivector
+from qiskit.tools.visualization import circuit_drawer
+from qiskit.quantum_info import state_fidelity
+from qiskit import BasicAer
+# import the tools we will use later
+backend = BasicAer.get_backend('unitary_simulator')
+# unitary_simulator allow you to calculate the unitary matrices
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+import numpy as np
+from math import pi , sqrt
+# Useful additional packages 
+
+## Single-qubit gates
+The single-qubit gates available are：
+
+- U gate 
+- Pauli gates
+- Standard rotation gates
+- Hadamard gate
+- Identity gate I
+- S gate
+- T gate
+
+We choose the backend ：`unitary_simulator` to allow you to calculate the unitary matrices.
+
+q = QuantumRegister(1) # here is one qubit
+
+# The U gate
+### $U_3$ gate is the most general of all single-qubit quantum gate
+
+$$
+U_3 (\theta,\phi,\lambda) =
+\begin{bmatrix} cos(\frac{\theta}{2}) & -e^{i\lambda}sin(\frac{\theta}{2}) \\
+e^{i\phi}sin(\frac{\theta}{2}) & e^{i\lambda+i\phi}cos(\frac{\theta}{2})\end{bmatrix}
+$$
+
+qc = QuantumCircuit(q)
+qc.u3(pi,pi/2,pi/2,q)
+qc.draw()
+# we need to give the u3 gate the parameter value
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+We can see when $\theta =\pi ,\phi = \frac{\pi}{2} , \lambda = \frac{\pi}{2}$ ,the $U_3$ gate is equivalnt to Y gate.
+
+qc = QuantumCircuit(q)
+qc.u3(pi/2,pi/2,pi/2,q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+### $U_2$ gate is specific case of $U_3$ gate with $\theta = \frac{\pi}{2}$
+$$
+U_2(\frac{\pi}{2},\phi,\lambda) =
+\begin{bmatrix} 1 & e^{-i\lambda} \\ e^{i\phi} & e^{i\lambda+i\phi} \end{bmatrix}
+$$
+
+qc = QuantumCircuit(q)
+qc.u2(pi/2,pi/2,q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals =3)
+
+Obviously , it's equivalent to the above example.
+
+### $U_1$ gate is specific case of the $U_3$ gate with $\theta = \phi = 0$
+$$
+U_3(0,0,\lambda) = 
+\begin{bmatrix} 1 & 0 \\ 0 & e^{i\lambda} \end{bmatrix}
+$$
+
+qc = QuantumCircuit(q)
+qc.u1(pi/2,q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+# Pauli gate
+## $X$gate : bit-flip gate
+
+The bit-flip gate $X$ is defined as:
+
+$$X = \begin{bmatrix}0 & 1\\1 & 0\end{bmatrix} = U_3(\pi,0,\pi) 
+=  \big | 0 \big \rangle \big \langle 1 \big | + \big | 1 \big \rangle \big \langle 0 \big | $$
+
+qc = QuantumCircuit(q) # creat a circuit on q
+qc.x(q) # use x gate 
+qc.draw()
+
+# Notice that if you didn't initialized the state , it will be only has the 0 state
+
+job = execute(qc , backend) # call our backend and execute
+job.result().get_unitary(qc , decimals = 3) # make our array look simple
+
+from qiskit import Aer , execute
+sv_backend = Aer.get_backend('statevector_simulator')
+bloch_job = execute(qc , sv_backend)
+bloch_results = bloch_job.result()
+bloch_vector = bloch_results.get_statevector(qc)
+# Execute on statevector_simulator
+
+# Need to import some statevector_simulator visualization options
+from qiskit.visualization import plot_state_city , plot_state_paulivec
+plot_bloch_multivector(bloch_vector) # plot the result
+
+### Add a same gate to see that result is reversible
+
+qc.x(0)
+qc.draw()
+
+qobj = assemble(qc) # Assemble a circuit
+state = sv_backend.run(qobj).result().get_statevector() # the faster way 
+plot_bloch_multivector(state)
+# Notice here takes a qubit's statevector instead of the Bloch vector
+
+## $Y$gate : bit & phase flip gate
+The $Y$gate is defined as:
+$$
+Y  = \begin{bmatrix}0 & -i\\i & 0\end{bmatrix} = U_3(\pi,\frac{\pi}{2},\frac{\pi}{2})
+= -i\; \big | 0 \big \rangle \big \langle 1 \big | + i\; \big | 1 \big \rangle \big \langle 0 \big |
+$$
+
+qc = QuantumCircuit(q)
+qc.y(q)
+qc.draw()
+# Put a y gate
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+# Here i is a global phase , so it can ignore
+
+qc.y(q)
+qc.draw()
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+If we intialized the state 
+
+qc = QuantumCircuit(q) # Creat a qubit in our circuit
+initial_state = [0 , 1] # Defined the initial state as |1>
+qc.initialize(initial_state , 0) # Apply initialization operation to the 0th qubit
+qobj = assemble(qc) # Create an assembly of the circuit for the simulator to run
+state = sv_backend.run(qobj).result().get_statevector() # Do the simulation and return the result
+print(state) # Dispaly the output statevector
+
+plot_bloch_multivector(state)
+
+qc.y(q)
+qc.draw()
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector() # 不要想偷懶!給我打完
+plot_bloch_multivector(state)
+
+## $Z$gate : phase-flip gate
+The $Z$gate is defined as:
+$$
+Z  = \begin{bmatrix}1 & 0\\0 & -1\end{bmatrix} = U_3(0 , 0 , \pi)
+= \big | 0 \big \rangle \big \langle 0 \big | - \big | 1 \big \rangle \big \langle 1 \big |
+$$
+
+qc = QuantumCircuit(q)
+qc.z(q)
+qc.draw()
+#use the z gate
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)#get the unitary matrix
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+# Initialized the qubit and display the result
+qc = QuantumCircuit(q)
+initial_state = [0 , 1]
+qc.initialize(initial_state , 0)
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+print(state)
+plot_bloch_multivector(state)
+
+qc.z(q)
+qc.draw()
+
+# See what will happend when we put the Z gate on the initialized qubit
+qobj =  assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+We can see that we use the z gate ,and nothing happended.\
+Because the Z gate is a phase-flip gate, we can't observed the change of Bloch sphere
+
+## Standard rotation gate
+The standard rotation gate are those that define rotatoins around the Pauli matrices $P=\{X , Y , Z \}$.They are defined as
+
+$$
+R_P(\theta)  = e^{\frac{-i \theta P}{2}} = cos(\frac{\theta}{2})\;I - i\; sin(\frac{\theta}{2})\;P
+$$
+
+### The $R_x$ gate
+The rotation around X-axis:
+$$
+R_x(\theta) = 
+\begin{bmatrix} cos(\frac{\theta}{2}) & -i\;sin(\frac{\theta}{2}) 
+\\ -i\;sin(\frac{\theta}{2}) & cos(\frac{\theta}{2}) \end{bmatrix} = U_3\;(\theta , \frac{-\pi}{2} , \frac{\pi}{2})
+$$
+
+qc = QuantumCircuit(q)
+qc.rx(pi/2 , q) # Need to give the angle
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+bloch_job = execute(qc , sv_backend)
+bloch_result = bloch_job.result()
+bloch_state = bloch_result.get_statevector(qc , decimals =3)
+plot_bloch_multivector(bloch_state)
+
+We can see that state rotate $\frac{\pi}{2}$ around the X-axis
+
+### The $R_y$ gate
+The rotation around Y-axis:
+$$
+R_y(\theta) =
+\begin{bmatrix} cos(\frac{\theta}{2}) & -sin(\frac{\theta}{2}) \\ -sin(\frac{\theta}{2}) & cos(\frac{\theta}{2}) \end{bmatrix}
+= U_3 (\theta , 0 , 0)
+$$
+
+qc = QuantumCircuit(q)
+qc.ry(pi/2 , q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals =3 )
+
+bloch_job = execute(qc , sv_backend)
+bloch_state = bloch_job.result().get_statevector()
+plot_bloch_multivector(bloch_state)
+
+We can observer that state rotate $\frac{\pi}{2}$ around Y-axis
+
+### The $R_\phi$ gate
+The $R_\phi$ gate as known as Rotate-$Z$gate is defined as:
+$$
+R_{\phi} = 
+\begin{bmatrix} e^{-i{\phi}} & 0 \\ 0 & e^{i{\phi}}\end{bmatrix} 
+$$
+
+Must noticed that the $ e^{-i{\phi}}$ is global phase.
+
+
+And you may notice that the Z-gate is a special case of the $R_\phi$ gate, with $\phi = \pi$.
+
+$$
+R_Z(\pi)  = 
+\begin{bmatrix} e^{-i\pi} & 0 \\ 0 & e^{i\pi}\end{bmatrix} =
+\begin{bmatrix} 1 & 0 \\ 0 & -1 \end{bmatrix}
+$$
+
+qc = QuantumCircuit(q)
+qc.rz(pi,q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+If we use condition:$\phi=\pi$, $R_\phi$ gate will be the same as Z gate
+
+qc = QuantumCircuit(q)
+qc.h(q)
+qc.rz(pi/2,0)
+qc.draw()
+# Use hadamard gate , we can see the change of state on Bloch's sphere clearly
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+bloch_job = execute(qc , sv_backend)
+bloch_result = bloch_job.result()
+bloch_state = bloch_result.get_statevector()
+plot_bloch_multivector(bloch_state)
+
+We can know that state change to y-axis from x-axis, because $R_z$ gate is the rotation around Z-axis.
+
+### The Hadamard Gate
+The $H$ Gate is defind as :
+$$
+H   =\frac{1}{\sqrt{2}}\; \begin{bmatrix} 1 & 1 \\ 1 & -1 \end{bmatrix}  = U_3(\frac{\pi}{2},0,\pi)
+$$
+
+# use the H gate
+qc= QuantumCircuit(q)
+qc.h(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+qc = QuantumCircuit(q)
+initial_state = [0 , 1]
+qc.initialize(initial_state , 0)
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+print(state)
+plot_bloch_multivector(state)
+
+qc.h(q)
+qc.draw()
+
+qobj = assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+## The Identity gate
+The identity gate ($I$gate) is defined as:
+$$
+I  =
+\begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix} = U_3(0,0,0)
+$$
+
+qc = QuantumCircuit(q)
+qc.i(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+qobj= assemble(qc)
+state = sv_backend.run(qobj).result().get_statevector()
+plot_bloch_multivector(state)
+
+### The S gate
+
+The S gate (sometimes knows as $\sqrt{Z}$ gate), this is an $R_\phi$ gate with $ \phi = \frac{\pi}{2}$ .
+
+It does a quarter-turn around the Bloch's sphere.
+$$
+S = \begin{bmatrix} 1 & 0 \\ 0 & e^{\frac{i\pi}{2}} \end{bmatrix} 
+= \begin{bmatrix} 1 & 0 \\ 0 & i \end{bmatrix} = U_3(0 , 0 , \frac{\pi}{2})
+$$
+
+qc = QuantumCircuit(q)
+qc.s(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+#### Now , let's add the same gate in circuit.
+
+qc = QuantumCircuit(q)
+qc.s(q)
+qc.s(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+We can see the fact that two successively applied S gate has same effect as one Z gate.
+
+$$
+SS \big | q \big \rangle = Z \big | q \big \rangle
+$$
+
+### The $S^{\dagger}$ gate
+
+It is important to note that the S gate is **not** its own inverse !
+
+As the result , we will often see the $S^{\dagger}$ gate.
+
+The $S^{\dagger}$ gate is clearly an $R_\phi$ gate with $\phi = \frac{-\pi}{2}$.
+
+$$
+S^{\dagger} = \begin{bmatrix} 1 & 0 \\ 0 & e^{\frac{-i\pi}{2}} \end{bmatrix}
+=\begin{bmatrix} 1 & 0 \\ 0 & -i \end{bmatrix} = U_3(0 , 0 , \frac{-\pi}{2})
+$$
+
+qc = QuantumCircuit(q)
+qc.sdg(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+#### Let's try and see what will happend when we successively applied the $S^{\dagger}$ gate later a S gate.
+
+qc = QuantumCircuit(q)
+qc.s(q)
+qc.sdg(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+Here we can observered that the state turn back to initial state.
+
+
+
+
+### The T gate
+The T gate is a very commonly used gate, it is an $R_\phi$ gate with $\phi = \frac{\pi}{4}$.
+
+T(or $\sqrt{S}$ phase) gate：
+$$
+T = 
+\begin{bmatrix} 1 & 0 \\ 0 & e^{\frac{i\pi}{4}} \end{bmatrix} = U_3(0 , 0 , \frac{\pi}{4})
+$$
+
+qc = QuantumCircuit(q)
+qc.t(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+### The $T^{\dagger}$ gate
+It is an $R_\phi$ gate with $\phi = \frac{-\pi}{4}$.
+$$
+T^{\dagger} = 
+\begin{bmatrix} 1 & 0 \\ 0 & e^{\frac{-i\pi}{4}} \end{bmatrix} = U_3(0 , 0 , \frac{-\pi}{4})
+$$
+
+qc = QuantumCircuit(q)
+qc.tdg(q)
+qc.draw()
+
+job = execute(qc , backend)
+job.result().get_unitary(qc , decimals = 3)
+
+### And next we will introduce the multiple qubit gates and explore the behaviours of multi-qubit system.
